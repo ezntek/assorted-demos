@@ -1,0 +1,87 @@
+; yes.s: implementation of the `yes` utility in x86_64 linux nasm.
+;
+; Copyright (c) ezntek, 2025.
+; All source code in this directory is licensed under the bsd 0-clause license.
+format ELF64
+
+include "linux.inc"
+
+section '.text' executable
+strlen:
+    ; rdi: const char*
+    ; rax: counter
+
+    ; clear counter
+    xor rax, rax
+    strlen_loop:
+        ; check null termination
+        ; rax is our offset
+        cmp byte [rdi+rax], 0
+        je strlen_loop_end
+        inc rax
+        jmp strlen_loop
+    strlen_loop_end:
+    ret
+
+public main
+main:
+    ; rdi: int argc
+    ; rsi: char** argv
+    ; rcx: counter
+    ; r8: const char* temp
+    ; r9: size_t temp_item_length
+    cmp rdi, 1
+    jne .loop
+    .default_loop:
+        ; we know sizeof("y\n") is always 2
+        syscall3 SYS_write, 1, yes, 2 
+        jmp .default_loop
+
+    .loop:
+        ; rcx keeps the counter for iterating through argv,
+        ; we must reset every iteration
+        mov rcx, 1
+        .print_one_arg_loop:
+            ; we keep printing until argc is 0
+            mov r8, qword [rsi+8*rcx]
+            ; call strlen
+            ; we dont care about rax
+            push rdi
+            push rsi
+            push rcx
+            mov rdi, r8
+            call strlen
+            pop rcx
+            pop rsi
+            pop rdi
+            ; rax contains the length
+            mov r9, rax
+            ; syscall
+            push rdi
+            push rsi
+            push rcx
+            syscall3 SYS_write, 1, r8, r9
+            mov rsi, space
+            syscall3 SYS_write, 1, rsi, 1 
+            pop rcx
+            pop rsi
+            pop rdi
+            ; loop counter handling
+            inc rcx
+            cmp rdi, rcx
+            jne .print_one_arg_loop
+        ; print newline
+        push rdi
+        push rsi
+        push rcx
+        mov rsi, newline
+        syscall3 SYS_write, 1, rsi, 1 
+        pop rcx
+        pop rsi
+        pop rdi
+        jmp .loop
+
+section '.data'
+yes     db "y", 0xA
+space   db 0x20
+newline db 0xA

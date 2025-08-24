@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define MAXRECT     1000
+#define MAXRECT     500
 #define WINWIDTH    800
 #define WINHEIGHT   600
 #define SIZEVARBITS 6
@@ -35,7 +35,7 @@ int main(void) {
         generaterect(lastid);
         if (lastid++ >= MAXRECT)
             // REPLACE THE BELOW LINE WITH break; TO RUNONCE
-            lastid = 0;
+            break;
     }
     CloseWindow();
     return 0;

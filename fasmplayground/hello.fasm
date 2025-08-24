@@ -1,0 +1,15 @@
+format elf64
+
+extrn puts
+
+section '.text' executable
+public main
+main:
+    mov rdi, hello
+    call puts
+    xor eax, eax
+    ret
+
+section '.data'
+hello db "hello, world!", 0x0
+len = $ - hello 

@@ -1,0 +1,15 @@
+; base convert algorithm in fasm.
+; copyright (c) eason qin, 2025.
+; licensed under the bsd 0-clause license.
+
+format elf64
+
+section '.text' executable
+public main
+main:
+    mov eax, 69
+    ret
+
+section '.data'
+
+section '.bss'
