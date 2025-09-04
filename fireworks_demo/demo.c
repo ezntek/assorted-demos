@@ -42,9 +42,9 @@
 #define S_SHOWCURSOR   "\033[?25h"
 #define S_HIDECURSOR   "\033[?25l"
 
-#define TICK_SPEED    35 // usec
+#define TICK_SPEED    50 // usec
 #define g             9.8
-#define MAX_PARTICLES (int)100
+#define MAX_PARTICLES (int)140
 
 #define MIN_U     15
 #define MAX_U     35
@@ -135,7 +135,9 @@ double uniform(double a, double b) {
     return a + (b - a) * ((double)rand() / RAND_MAX);
 }
 
-int randint(int a, int b) { return (rand() % (b - a + 1)) + a; }
+int randint(int a, int b) {
+    return (rand() % (b - a + 1)) + a;
+}
 
 void handle_sigint(int dummy) {
     (void)dummy;
@@ -295,7 +297,7 @@ static void draw_text(void) {
         else
             // right side left
             x = tcol - line_counters[i] - strlen(LINES[i]);
-        y = 2 + i;
+        y = bybegin - 4 - LENGTH(LINES) + i;
         printf("\033[%d;%dH", y, x);
         printf("\033[%dm%s\033[0m", line_colors[i], LINES[i]);
     }
@@ -333,7 +335,7 @@ static void update_rainbow(void) {
 static void update_text(void) {
     int wanted_pos, cur_pos;
 
-    if (ticker % 4 != 0)
+    if (ticker % 2 != 0)
         return;
 
     for (int i = 0; i < LENGTH(line_counters); i++) {
