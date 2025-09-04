@@ -1,0 +1,115 @@
+From ae7cd7826516b46fb8141db9b1e5f05d8fbb1a20 Mon Sep 17 00:00:00 2001
+From: Abdullah <3bd3bdr@gmail.com>
+Date: Fri, 5 Sep 2025 02:14:40 +0300
+Subject: [PATCH] fix: flickering and non-bolding
+
+---
+ fireworks_demo/demo.c | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/fireworks_demo/demo.c b/fireworks_demo/demo.c
+index edee538..b39b2e8 100644
+--- a/fireworks_demo/demo.c
++++ b/fireworks_demo/demo.c
+@@ -216,7 +216,7 @@ static void draw_confetti(Confetti* c, bool side) {
+         if (ticker % 2 == 0)
+             printf("\033[%dm*", c->color);
+         else
+-            printf("\033[1;%dm*", c->color);
++            printf("\033[%dm*", c->color + 60);
+     }
+ }
+ 
+@@ -235,17 +235,17 @@ static void draw_banner(void) {
+     // the top is 2 chars tall
+     for (int i = 0; i < LENGTH(BANNER_TOP); i++) {
+         printf("\033[%d;%dH", bybegin + i + 1, bxbegin + topxbegin);
+-        printf("\033[0;37;40m%s\033[0m", BANNER_TOP[i]);
++        printf("\033[0;97;40m%s\033[0m", BANNER_TOP[i]);
+     }
+ 
+     for (int i = 0; i < LENGTH(BANNER_MIDDLE); i++) {
+         printf("\033[%d;%dH", bybegin + i + 4, bxbegin + middlexbegin);
+-        printf("\033[0;37;40m%s\033[0m", BANNER_MIDDLE[i]);
++        printf("\033[0;97;40m%s\033[0m", BANNER_MIDDLE[i]);
+     }
+ 
+     for (int i = 0; i < LENGTH(BANNER_MIDDLE); i++) {
+         printf("\033[%d;%dH", bybegin + i + 8, bxbegin + btmxbegin);
+-        printf("\033[0;37;40m%s\033[0m", BANNER_BOTTOM[i]);
++        printf("\033[0;97;40m%s\033[0m", BANNER_BOTTOM[i]);
+     }
+ }
+ 
+@@ -259,35 +259,38 @@ static void draw_rainbow(void) {
+     // top
+     for (x = left; x <= right; x++) {
+         printf("\033[%d;%dH", top, x);
+-        printf("\033[0;37;%dm \033[0m", curcol + 41);
++        printf("\033[0;37;%dm \033[0m", curcol + 101);
+         curcol = (curcol + 1) % 7;
+     }
+ 
+     // right-down
+     for (y = top + 1; y <= btm - 1; y++) {
+         printf("\033[%d;%dH", y, right);
+-        printf("\033[0;37;%dm \033[0m", curcol + 41);
++        printf("\033[0;37;%dm \033[0m", curcol + 101);
+         curcol = (curcol + 1) % 7;
+     }
+ 
+     // bottom
+     for (x -= 1; x >= left; x--) {
+         printf("\033[%d;%dH", btm, x);
+-        printf("\033[0;37;%dm \033[0m", curcol + 41);
++        printf("\033[0;37;%dm \033[0m", curcol + 101);
+         curcol = (curcol + 1) % 7;
+     }
+ 
+     // left-up
+     for (y -= 1; y >= top + 1; y--) {
+         printf("\033[%d;%dH", y, left);
+-        printf("\033[0;37;%dm \033[0m", curcol + 41);
++        printf("\033[0;37;%dm \033[0m", curcol + 101);
+         curcol = (curcol + 1) % 7;
+     }
+ }
+ 
+ static void draw_text(void) {
+     int x = 0, y = 0;
+-    for (int i = 0; i < LENGTH(LINES); i++) {
++    y = bybegin - 4 - LENGTH(LINES);
++    if(y < 1)
++	    y = 1;
++    for (int i = 0; i < LENGTH(LINES); i++, y++) {
+         if (line_counters[i] < 0)
+             continue;
+ 
+@@ -297,7 +300,6 @@ static void draw_text(void) {
+         else
+             // right side left
+             x = tcol - line_counters[i] - strlen(LINES[i]);
+-        y = bybegin - 4 - LENGTH(LINES) + i;
+         printf("\033[%d;%dH", y, x);
+         printf("\033[%dm%s\033[0m", line_colors[i], LINES[i]);
+     }
+@@ -325,6 +327,7 @@ void draw(void) {
+         draw_rainbow();
+         draw_banner();
+     }
++    fflush(stdout);
+ }
+ 
+ static void update_rainbow(void) {
+@@ -339,7 +342,7 @@ static void update_text(void) {
+         return;
+ 
+     for (int i = 0; i < LENGTH(line_counters); i++) {
+-        line_colors[i] = randint(31, 37);
++        line_colors[i] = randint(91, 97);
+ 
+         int curlen = strlen(LINES[i]);
+         wanted_pos = tcol / 2 - curlen / 2;
+-- 
+2.51.0
+
