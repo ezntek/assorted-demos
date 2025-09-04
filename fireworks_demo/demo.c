@@ -295,7 +295,7 @@ static void draw_text(void) {
         else
             // right side left
             x = tcol - line_counters[i] - strlen(LINES[i]);
-        y = 4 + i;
+        y = 2 + i;
         printf("\033[%d;%dH", y, x);
         printf("\033[%dm%s\033[0m", line_colors[i], LINES[i]);
     }
