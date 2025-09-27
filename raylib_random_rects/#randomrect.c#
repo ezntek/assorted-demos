@@ -1,0 +1,59 @@
+q
+// written by 3bdabd
+// put under the public domain
+
+#include <raylib.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define MAXRECT     500
+#define WINWIDTH    800
+#define WINHEIGHT   600
+#define SIZEVARBITS 6
+#define BASESIZE    100
+
+static int rect_x[MAXRECT];
+static int rect_y[MAXRECT];
+static int rect_w[MAXRECT];
+static int rect_h[MAXRECT];
+static int rectscolor[MAXRECT];
+
+static void displayrects(unsigned);
+static void generaterect(unsigned);
+
+int main(void) {
+    unsigned lastid = 0;
+    srand(time(NULL));
+    InitWindow(WINWIDTH, WINHEIGHT, "3abdullah magical program");
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        ClearBackground(WHITE);
+        displayrects(lastid);
+        DrawFPS(20, 20);
+        EndDrawing();
+        generaterect(lastid);
+        if (lastid++ >= MAXRECT)
+            // REPLACE THE BELOW LINE WITH break; TO RUNONCE
+            break;
+    }
+    CloseWindow();
+    return 0;
+}
+
+static void displayrects(unsigned lastid) {
+    size_t i = 0;
+    for (i = 0; i < lastid; i++) {
+        DrawRectangle(rect_x[i], rect_y[i], rect_w[i], rect_h[i],
+                      *(Color*)&rectscolor[i]);
+    }
+}
+
+static void generaterect(unsigned id) {
+    rectscolor[id] = (uint32_t)rand() | 0xff000000;
+    rect_w[id] = BASESIZE + (rand() & SIZEVARBITS);
+    rect_h[id] = BASESIZE + (rand() & SIZEVARBITS);
+    rect_x[id] = rand() % WINWIDTH;
+    rect_y[id] = rand() % WINHEIGHT;
+}
