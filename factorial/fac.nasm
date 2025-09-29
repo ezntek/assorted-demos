@@ -2,16 +2,13 @@
 ;
 ; Copyright (c) ezntek, 2025.
 ; All source code in this directory is licensed under the bsd 0-clause license.
-format ELF64
 
-include "linux.inc"
+extern printf
+extern scanf
+extern getchar
+extern putchar
 
-extrn printf
-extrn scanf
-extrn getchar
-extrn putchar
-
-section '.text' executable
+section .text
 printnum:
     ; rdi: long long num
     push rbp
@@ -32,14 +29,14 @@ getnum:
     ; [rbp - 12]: int res
     mov qword [rbp - 8], 0
     mov dword [rbp - 12], 0
-    
     .loop:
+        ; scanf boilerplate
         mov rdi, enter_prompt
         call printf
-
         mov rdi, scanf_fmt
         lea rsi, qword [rbp - 8]
         call scanf
+        ; we call printf so we save it on the stack
         mov dword [rbp - 12], eax
         test eax, eax
         jnz .loop_end
@@ -54,14 +51,13 @@ getnum:
     .loop_end: ; conditional
     cmp dword [rbp - 12], 1
     jne .loop
-    ; end .loop
 
     mov rax, qword [rbp - 8]
     add rsp, 16
     pop rbp
     ret
 
-public main
+global main
 main:
     ; rdi: int argc
     ; rsi: char** argv
@@ -78,7 +74,7 @@ main:
     call printf
     jmp .end
     
-.calc:
+    .calc:
     ; we need the num later, printf will overwrite eax
     mov qword [rbp - 8], rax
 
@@ -92,7 +88,7 @@ main:
 
     ; set up multiplication loop
     ; rax: acculumator
-    ; rbx: num
+    ; rbx: multiplier
     mov qword [rbp - 16], 1
     .loop:
         ; back value up on stack due to printf call
@@ -123,14 +119,14 @@ main:
     call printnum
     mov edi, 0xA
     call putchar
-
-.end:
+    
+    .end:
     add rsp, 16
     pop rbp
     xor eax, eax
     ret
 
-section '.data'
+section .data
     scanf_fmt     db "%lld", 0x0
     enter_prompt  db "n = ", 0x0
     tryagain_msg  db "invalid input, try again", 0xA, 0x0
