@@ -14,8 +14,7 @@ public class Fibonacci {
 
             if (n < 0) {
                 System.out.println("Error- enter a positive number.");
-            }
-
+            } 
         } while (n < 0);
 
         long a = -1;
