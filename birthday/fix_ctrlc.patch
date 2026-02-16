@@ -1,0 +1,209 @@
+diff --git a/birthday/birthday.pas b/birthday/birthday.pas
+index ab50602..f2e69e7 100644
+--- a/birthday/birthday.pas
++++ b/birthday/birthday.pas
+@@ -3,7 +3,7 @@ program Birthday;
+ {$mode objfpc}{$H+}
+ 
+ uses
+-    sysutils;
++    sysutils, baseunix, unix;
+ 
+ type
+     TStringArray = array[0..5] of AnsiString;
+@@ -55,58 +55,6 @@ begin
+     Write(#27'[2J'#27'[H');
+ end;
+ 
+-procedure Init;
+-var
+-    Width: AnsiString;
+-    Height: AnsiString;
+-    ShouldExit: Boolean;
+-begin
+-    Width := GetEnvironmentVariable('COLUMNS');
+-    Height := GetEnvironmentVariable('LINES');
+-
+-    ShouldExit := false;
+-    if Width = '' then
+-    begin
+-        WriteLn(StdErr, 'Please set $COLUMNS. zsh users should just type `export COLUMNS`');
+-        ShouldExit := true;
+-    end;
+-
+-    if Height = '' then
+-    begin
+-        WriteLn(StdErr, 'Please set $LINES. zsh users should just type `export LINES`');
+-        ShouldExit := true;
+-    end;
+-
+-    if ShouldExit then
+-        Halt(1);
+-
+-    TermWidth := StrToInt(Width); 
+-    TermHeight := StrToInt(Height); 
+-
+-    { setup marcos text }
+-    with Marcos do
+-    begin
+-        x := (TermWidth div 2) - 17; 
+-        y := -6.0;
+-        vx := 0;
+-        vy := 6;
+-    end;
+-
+-    State := SMarcosDrop;
+-    Done := false; 
+-
+-    { hide cursor }
+-    Write(#27'[?25l');
+-    Clear;
+-end;
+-
+-procedure Deinit;
+-begin
+-    Clear;
+-    { show cursor }
+-    WriteLn(#27'[?25h');
+-end;
+-
+ procedure CursorTo(x, y: Real);
+ var
+     ix: Word;
+@@ -222,35 +170,48 @@ begin
+         end;
+ end;
+ 
+-procedure Update;
++procedure UpdateMarcosDrop;
+ var
+     FloorHeight: Integer;
+ begin
+     FloorHeight := Trunc(2*(TermHeight/3));
+ 
+-    case State of
+-    SMarcosDrop:
+-        with Marcos do
+-        begin
+-            vy := vy + GRAVITY * (1/FPS);
+-            x := x + vx * (1/FPS);
+-            y := y + vy * (1/FPS);
+-
+-            if y + 6 >= FloorHeight then
+-            begin
+-                vy := -0.7 * vy;
+-                y := FloorHeight - 6;
+-            end;
++    with Marcos do
++    begin
++        vy := vy + GRAVITY * (1/FPS);
++        x := x + vx * (1/FPS);
++        y := y + vy * (1/FPS);
+ 
+-            if (((y + 6.0) = FloorHeight) and (abs(vy) < 12.0)) then
+-            begin
+-                vy := 0.0;
+-                BeginMarcosExplode;
+-            end;
++        if y + 6 >= FloorHeight then
++        begin
++            vy := -0.7 * vy;
++            y := FloorHeight - 6;
+         end;
+-    SMarcosExplode:
++
++        if (((y + 6.0) = FloorHeight) and (abs(vy) < 12.0)) then
+         begin
++            vy := 0.0;
++            BeginMarcosExplode;
+         end;
++    end;
++end;
++
++procedure UpdateMarcosExplode;
++begin
++    if SavedFrame + 25 < CurFrame then
++    begin
++        SavedFrame := SavedFrame + 1;
++        exit;
++    end;
++end;
++
++procedure Update;
++begin
++    case State of
++    SMarcosDrop:
++        UpdateMarcosDrop;
++    SMarcosExplode:
++        UpdateMarcosExplode; 
+     else
+         begin
+             WriteLn('Not Implemented');
+@@ -268,8 +229,67 @@ begin
+     CurFrame := CurFrame + 1;
+ end;
+ 
++procedure Init;
++var
++    Width: AnsiString;
++    Height: AnsiString;
++    ShouldExit: Boolean;
++begin
++    Width := GetEnvironmentVariable('COLUMNS');
++    Height := GetEnvironmentVariable('LINES');
++
++    ShouldExit := false;
++    if Width = '' then
++    begin
++        WriteLn(StdErr, 'Please set $COLUMNS. zsh users should just type `export COLUMNS`');
++        ShouldExit := true;
++    end;
++
++    if Height = '' then
++    begin
++        WriteLn(StdErr, 'Please set $LINES. zsh users should just type `export LINES`');
++        ShouldExit := true;
++    end;
++
++    if ShouldExit then
++        Halt(1);
++
++    TermWidth := StrToInt(Width); 
++    TermHeight := StrToInt(Height); 
++
++    { setup marcos text }
++    with Marcos do
++    begin
++        x := (TermWidth div 2) - 17; 
++        y := -6.0;
++        vx := 0;
++        vy := 6;
++    end;
++
++    State := SMarcosDrop;
++    Done := false; 
++
++    { hide cursor }
++    Write(#27'[?25l');
++    Clear;
++end;
++
++procedure Deinit;
++begin
++    Clear;
++    WriteLn(#27'[?25h');
++end;
++
++procedure HandleSignal(Signal: CInt); cdecl;
++begin
++    Deinit;
++    Halt(1);
++end;
++
+ begin
+     Init;
++    FpSignal(SIGINT, @HandleSignal);
++    FpSignal(SIGTERM, @HandleSignal);
+     while not Done do
+     begin
+         Frame;
