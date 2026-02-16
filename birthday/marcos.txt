@@ -1,0 +1,8 @@
+M   M   A   RRRR   CCC   OOO   SSSS
+MM MM  A A  R   R C   C O   O S    
+M M M A   A R   R C     O   O  SSS
+M   M AAAAA RRRR  C     O   O     S
+M   M A   A R   R C   C O   O     S
+M   M A   A R   R  CCC   OOO  SSSS
+
+
