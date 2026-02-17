@@ -1,16 +1,14 @@
 program Birthday;
 
 uses
-    sysutils, baseunix, unix;
+    sysutils, baseunix, unix, math;
 
 type
-    TStringArray = array[0..5] of AnsiString;
-
     TPos = record
-        x: Real;
-        y: Real;
-        vx: Real;
-        vy: Real; 
+        x: Double;
+        y: Double;
+        vx: Double;
+        vy: Double; 
     end;
 
     TEntity = record
@@ -19,7 +17,6 @@ type
         color: Integer;
         active: Boolean;
     end;
-    PEntity = ^TEntity;
 
     TState = (SMarcosDrop, SMarcosExplode, SFireworks);
 
@@ -28,10 +25,14 @@ const
     BOLD = #27'[1m';
     RESET = #27'[0m';
     GRAVITY = 24;
-    MAX_PARTICLE_V = 30;
+    MAX_FIREWORK_PARTICLE_V = 18;
+    MAX_MARCOS_PARTICLE_V = 30;
+    FIREWORK_PARTICLES = 50;
+    FIREWORK_COUNTDOWN_BEGIN = 18;
+    FIREWORK_BLINK_INTERVAL = 6;
     { 35 across }
-    { 85 chars }
-    MARCOS_TXT: TStringArray = (
+    { 87 chars }
+    MARCOS_TXT: array[1..6] of AnsiString = (
        '.   .   .   ....   ...   ...   ....',
        '.. ..  . .  .   . .   . .   . .    ',
        '. . . .   . .   . .     .   .  ... ',
@@ -42,14 +43,17 @@ const
 
 var
     Marcos: TPos;
-    { 87 things }
-    MarcosParts: array[0..86] of TEntity; 
+    { allow more entities due to firework particles after marcos explosion }
+    Entities: array[1..256] of TEntity; 
     State: TState;
     CurFrame: LongInt;
     TermWidth: Integer;
     TermHeight: Integer;
-    ParticlesDone: Boolean;
     Done: Boolean;
+    AllParticlesDespawned: Boolean;
+    { countdown for when the firework should explode in frames }
+    FireworkCountdown: Integer;
+    
 
 { utilities }
 procedure Clear;
@@ -57,7 +61,7 @@ begin
     Write(#27'[2J'#27'[H');
 end;
 
-procedure CursorTo(x, y: Real);
+procedure CursorTo(x, y: Double);
 var
     ix: Word;
     iy: Word;
@@ -81,42 +85,44 @@ procedure BeginMarcosExplode;
 var
     NewPart: TEntity;
     PartsLast: Integer;
-    row: Integer;
-    col: Integer;
+    Row: Integer;
+    Col: Integer;
     CurChar: Char;
 begin
     State := SMarcosExplode;  
-    PartsLast := 0;
+    PartsLast := 1;
 
-    for row := 0 to 5 do
-        for col := 1 to 35 do
+    for Row := 1 to 6 do
+        for Col := 1 to 35 do
         begin
-            CurChar := MARCOS_TXT[row][col];
+            CurChar := MARCOS_TXT[Row][Col];
             if CurChar = ' ' then
                 continue;
            
             with NewPart.p do
             begin
-                x := Marcos.x + col;
-                y := Marcos.y + row;
+                x := Marcos.x + Col;
+                y := Marcos.y + (Row - 1);
                 vx := 0;
                 vy := 0;
             end;
 
-            if col < 6 then
-                NewPart.ch := 'M'
-            else if col < 12 then
-                NewPart.ch := 'A'
-            else if col < 18 then
-                NewPart.ch := 'R'
-            else if col < 24 then
-                NewPart.ch := 'C'
-            else if col < 30 then
-                NewPart.ch := 'O'
+            if Col < 6 then
+                CurChar := 'M'
+            else if Col < 12 then
+                CurChar := 'A'
+            else if Col < 18 then
+                CurChar := 'R'
+            else if Col < 24 then
+                CurChar := 'C'
+            else if Col < 30 then
+                CurChar := 'O'
             else
-                NewPart.ch := 'S';
+                CurChar := 'S';
 
-            case NewPart.ch of
+            NewPart.ch := CurChar;
+
+            case CurChar of
                 'M': NewPart.color := 34;
                 'A': NewPart.color := 31;
                 'R': NewPart.color := 33;
@@ -126,24 +132,68 @@ begin
             end;
 
             { set a random velocity }
-            NewPart.p.vx := Random(MAX_PARTICLE_V);
-            NewPart.p.vy := -1.0 * (Random(15) + 2 * (MAX_PARTICLE_V div 3));
+            NewPart.p.vx := Random(MAX_MARCOS_PARTICLE_V);
+            NewPart.p.vy := -1.0 * (Random(15) + 2 * (MAX_MARCOS_PARTICLE_V div 3));
 
-            NewPart.active := true;
-
-            if col < 17 then
+            if Col < 17 then
                 NewPart.p.vx := NewPart.p.vx * -1.0;
 
-            MarcosParts[PartsLast] := NewPart;
+            Entities[PartsLast] := NewPart;
             PartsLast := PartsLast + 1;
         end;
 end;
 
+procedure SpawnFirework;
+var
+    i: Integer;
+begin
+    with Entities[1] do
+    begin
+        p.x := (TermWidth div 4) + Random(TermWidth div 2);
+        p.y := (TermHeight div 4) + Random(TermHeight div 2);
+        p.vx := 0;
+        p.vy := 0;
+        ch := '*';
+        active := true;
+    end;
+
+    for i := 2 to ((FIREWORK_PARTICLES + 1) div 2) do
+    begin
+        with Entities[i] do
+        begin
+            p.x := Entities[1].p.x;
+            p.y := Entities[1].p.y;
+            p.vx := Random(MAX_FIREWORK_PARTICLE_V);
+            p.vy := -1.0 * (Random(15) + 2 * (MAX_FIREWORK_PARTICLE_V div 3));
+
+            ch := '*';
+            active := true;
+            color := 31;
+        end;
+
+        with Entities[FIREWORK_PARTICLES + 3 - i] do
+        begin
+            p.x := Entities[1].p.x;
+            p.y := Entities[1].p.y;
+            p.vx := -1.0 * Entities[i].p.vx;
+            p.vy := -1.0 * (Random(15) + 2 * (MAX_FIREWORK_PARTICLE_V div 3));
+
+            ch := '*';
+            active := true;
+            color := 31;
+        end;
+    end;
+
+
+    FireworkCountdown := FIREWORK_COUNTDOWN_BEGIN;
+    AllParticlesDespawned := false;
+end;
+
 procedure BeginFireworks;
 begin
-    CursorTo(0.0, 0.0);
     State := SFireworks;
-    { TODO: implement }
+    { set up first firework entity }
+    SpawnFirework;
 end;
 
 { Draw code }
@@ -151,9 +201,9 @@ procedure DrawMarcosDrop;
 var
     i, j: LongInt;
 begin
-    for i := 0 to 5 do
+    for i := 1 to 6 do
     begin
-        CursorTo(Marcos.x, Marcos.y + i);
+        CursorTo(Marcos.x, Marcos.y + (i - 1));
         for j := 1 to 35 do
             if MARCOS_TXT[i][j] = ' ' then
                 Write(' ')
@@ -162,20 +212,23 @@ begin
     end;
 end;
 
-procedure DrawMarcosExplode;
+procedure DrawEntities(L, U: Integer);
 var
     i: Integer;
     DrewActive: Boolean;
 begin
+    if AllParticlesDespawned then
+        exit;
+
     DrewActive := false;
 
-    for i := 0 to 84 do
+    for i := L to U do
     begin
-        if not MarcosParts[i].active then
+        if not Entities[i].active then
             continue;
 
         DrewActive := true;
-        with MarcosParts[i] do
+        with Entities[i] do
         begin
             CursorTo(p.x, p.y);
             Write(#27'[1;', color, 'm', ch, #27'[0m');
@@ -183,12 +236,30 @@ begin
     end;
 
     if not DrewActive then
-        ParticlesDone := true;
+        AllParticlesDespawned := true;
+end;
+
+procedure DrawMarcosExplode;
+begin
+    DrawEntities(1, 87);
 end;
 
 procedure DrawFireworks;
 begin
-    Write('fireworks placeholder');
+    if FireworkCountdown > 0 then
+    begin
+        CursorTo(Entities[1].p.x, Entities[1].p.y);
+        if 
+            FireworkCountdown mod FIREWORK_BLINK_INTERVAL <
+            (FIREWORK_BLINK_INTERVAL div 2)
+        then
+            Write('*')
+        else
+            Write(#27'[1;33m*'#27'[0m');
+        exit;
+    end;
+
+    DrawEntities(2, FIREWORK_PARTICLES + 1);
 end;
 
 { Update code }
@@ -221,26 +292,71 @@ end;
 procedure UpdateMarcosExplode;
 var
     i: LongInt;
-    Itm: PEntity;
 begin
-    if ParticlesDone then
+    if AllParticlesDespawned then
         BeginFireworks;
 
-    for i := 0 to 86 do
-    begin
-        Itm := @MarcosParts[i]; 
-        Itm^.p.vy := Itm^.p.vy + GRAVITY * (1/FPS);
-        Itm^.p.x := Itm^.p.x + Itm^.p.vx * (1/FPS);
-        Itm^.p.y := Itm^.p.y + Itm^.p.vy * (1/FPS);
+    for i := 1 to 87 do
+        with Entities[i] do 
+        begin
+            p.vy := p.vy + GRAVITY * (1/FPS);
+            p.x := p.x + p.vx * (1/FPS);
+            p.y := p.y + p.vy * (1/FPS);
 
-        if Itm^.p.y > TermHeight then
-            Itm^.active := false;
-    end;
+            if p.y > TermHeight then
+                active := false;
+        end;
 end;
 
 procedure UpdateFireworks;
+var
+    i: Integer;
+    Angle: Double;
 begin
+    if AllParticlesDespawned then
+    begin
+        SpawnFirework;
+        Exit;
+    end;
+    
+    if FireworkCountdown > 0 then
+    begin
+        FireworkCountdown := FireworkCountdown - 1;
+        exit;
+    end;
 
+    for i := 2 to FIREWORK_PARTICLES + 1 do
+        with Entities[i] do 
+        begin
+            p.vy := p.vy + GRAVITY * (1/FPS);
+            p.x := p.x + p.vx * (1/FPS);
+            p.y := p.y + p.vy * (1/FPS);
+
+            if p.y > TermHeight then
+                active := false;
+
+            Angle := RadToDeg(arctan2(p.vy, p.vx));
+            if Angle < 0 then
+                Angle := Angle + 360;
+
+            { - / \ | }
+            if ((80 < Angle) and (Angle < 100))
+                or ((260 < Angle) and (Angle < 280))
+            then
+                ch := '|'
+            else if ((0 < Angle) and (Angle < 10))
+                    or ((170 < Angle) and (Angle < 190))
+                    or (350 < Angle)
+            then 
+                ch := '-'
+            else if ((10 <= Angle) and (Angle <= 80))
+                    or ((190 <= Angle) and (Angle <= 260))
+            then
+                ch := '\'
+            else
+                ch := '/';
+
+        end;
 end;
 
 procedure Draw;
@@ -265,15 +381,6 @@ begin
     SFireworks:
         UpdateFireworks;
     end;
-end;
-
-procedure Frame;
-begin
-    Clear;
-    Draw;
-    Update;
-    Sleep(Trunc(1000/FPS));
-    CurFrame := CurFrame + 1;
 end;
 
 procedure Init;
@@ -313,8 +420,12 @@ begin
         vy := 6;
     end;
 
+    {
     State := SMarcosDrop;
+    }
+    BeginFireworks;
     Done := false; 
+    CurFrame := 0;
 
     { hide cursor }
     Write(#27'[?25l');
@@ -339,7 +450,11 @@ begin
     FpSignal(SIGTERM, @HandleSignal);
     while not Done do
     begin
-        Frame;
+        Clear;
+        Draw;
+        Update;
+        Sleep(Trunc(1000/FPS));
+        CurFrame := CurFrame + 1;
     end;
     Deinit;
 end.
