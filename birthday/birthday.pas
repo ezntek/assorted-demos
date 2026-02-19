@@ -40,11 +40,14 @@ const
        '.   . .   . .   . .   . .   .     .',
        '.   . .   . .   .  ...   ...  .... '
     );
-    FINAL_MESSAGE: array[1..2] of AnsiString = (
+    FINAL_MESSAGE: array[1..3] of AnsiString = (
         '(Very late) Happy Birthday!!!',
-        'And happy Chinese New Year!'
+        'And happy Chinese New Year!',
+        '祝您财源广进、平安喜乐、大吉大利、身体健康!'
     );
+    FINAL_MESSAGE_LENGTHS: array[1..3] of Integer = (29, 27, 43);
     FIREWORKS_PADDING = 8;
+    CREDITS_TXT = 'Made with <3 by Eason Qin, with contributions from Ved Jaggi, 3bd (xqrs)';
 
 var
     Marcos: TPos;
@@ -152,6 +155,8 @@ begin
 end;
 
 procedure SpawnFirework;
+const
+    TEXT_OFFSET = 3 + High(FINAL_MESSAGE);
 var
     i: Integer;
 begin
@@ -159,8 +164,8 @@ begin
     begin
         p.x := (FIREWORKS_PADDING div 2) + Random(TermWidth - FIREWORKS_PADDING);
         { 5: lines of message + 3 (beginning height) }
-        p.y := 5 + (FIREWORKS_PADDING div 2)
-                 + Random(TermHeight - FIREWORKS_PADDING - 5);
+        p.y := TEXT_OFFSET + (FIREWORKS_PADDING div 2)
+                 + Random(TermHeight - FIREWORKS_PADDING - TEXT_OFFSET);
         p.vx := 0;
         p.vy := 0;
         ch := '*';
@@ -266,9 +271,12 @@ begin
     for i := Low(FINAL_MESSAGE) to High(FINAL_MESSAGE) do
     begin
         Msg := FINAL_MESSAGE[i];
-        Write(#27'[', 3 + (i - 1), ';', (TermWidth div 2) - (Length(Msg) div 2), 'H');
+        Write(#27'[', 3 + (i - 1), ';', (TermWidth div 2) - (FINAL_MESSAGE_LENGTHS[i] div 2), 'H');
         Write(#27'[1;30;', CurMsgColor + 41, 'm', Msg , #27'[0m');
     end;
+
+    Write(#27'[', TermHeight, ';0H');
+    Write(#27'[2m', CREDITS_TXT, #27'[0m');
 end;
 
 procedure DrawFireworks;
