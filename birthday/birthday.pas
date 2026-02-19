@@ -21,7 +21,7 @@ type
     TState = (SMarcosDrop, SMarcosExplode, SFireworks);
 
 const
-    FPS = 24;
+    FPS = 30;
     BOLD = #27'[1m';
     RESET = #27'[0m';
     GRAVITY = 24;
@@ -40,6 +40,11 @@ const
        '.   . .   . .   . .   . .   .     .',
        '.   . .   . .   .  ...   ...  .... '
     );
+    FINAL_MESSAGE: array[1..2] of AnsiString = (
+        '(Very late) Happy Birthday!!!',
+        'And happy Chinese New Year!'
+    );
+    FIREWORKS_PADDING = 8;
 
 var
     Marcos: TPos;
@@ -53,6 +58,7 @@ var
     AllParticlesDespawned: Boolean;
     { countdown for when the firework should explode in frames }
     FireworkCountdown: Integer;
+    CurMsgColor: Integer;
     
 
 { utilities }
@@ -90,9 +96,10 @@ var
     CurChar: Char;
 begin
     State := SMarcosExplode;  
+    AllParticlesDespawned := false;
     PartsLast := 1;
 
-    for Row := 1 to 6 do
+    for Row := Low(MARCOS_TXT) to High(MARCOS_TXT) do
         for Col := 1 to 35 do
         begin
             CurChar := MARCOS_TXT[Row][Col];
@@ -134,6 +141,7 @@ begin
             { set a random velocity }
             NewPart.p.vx := Random(MAX_MARCOS_PARTICLE_V);
             NewPart.p.vy := -1.0 * (Random(15) + 2 * (MAX_MARCOS_PARTICLE_V div 3));
+            NewPart.active := true;
 
             if Col < 17 then
                 NewPart.p.vx := NewPart.p.vx * -1.0;
@@ -149,8 +157,10 @@ var
 begin
     with Entities[1] do
     begin
-        p.x := (TermWidth div 4) + Random(TermWidth div 2);
-        p.y := (TermHeight div 4) + Random(TermHeight div 2);
+        p.x := (FIREWORKS_PADDING div 2) + Random(TermWidth - FIREWORKS_PADDING);
+        { 5: lines of message + 3 (beginning height) }
+        p.y := 5 + (FIREWORKS_PADDING div 2)
+                 + Random(TermHeight - FIREWORKS_PADDING - 5);
         p.vx := 0;
         p.vy := 0;
         ch := '*';
@@ -192,6 +202,7 @@ end;
 procedure BeginFireworks;
 begin
     State := SFireworks;
+    CurMsgColor := 0;
     { set up first firework entity }
     SpawnFirework;
 end;
@@ -201,7 +212,7 @@ procedure DrawMarcosDrop;
 var
     i, j: LongInt;
 begin
-    for i := 1 to 6 do
+    for i := Low(MARCOS_TXT) to High(MARCOS_TXT) do
     begin
         CursorTo(Marcos.x, Marcos.y + (i - 1));
         for j := 1 to 35 do
@@ -244,6 +255,22 @@ begin
     DrawEntities(1, 87);
 end;
 
+procedure DrawFireworksText;
+var
+    i: Integer;
+    Msg: AnsiString;
+begin
+    if CurFrame mod 6 = 0 then
+        CurMsgColor := (CurMsgColor + 1) mod 6;
+
+    for i := Low(FINAL_MESSAGE) to High(FINAL_MESSAGE) do
+    begin
+        Msg := FINAL_MESSAGE[i];
+        Write(#27'[', 3 + (i - 1), ';', (TermWidth div 2) - (Length(Msg) div 2), 'H');
+        Write(#27'[1;30;', CurMsgColor + 41, 'm', Msg , #27'[0m');
+    end;
+end;
+
 procedure DrawFireworks;
 begin
     if FireworkCountdown > 0 then
@@ -256,10 +283,13 @@ begin
             Write('*')
         else
             Write(#27'[1;33m*'#27'[0m');
+    
+        DrawFireworksText;
         exit;
     end;
 
     DrawEntities(2, FIREWORK_PARTICLES + 1);
+    DrawFireworksText;
 end;
 
 { Update code }
@@ -420,10 +450,7 @@ begin
         vy := 6;
     end;
 
-    {
     State := SMarcosDrop;
-    }
-    BeginFireworks;
     Done := false; 
     CurFrame := 0;
 
