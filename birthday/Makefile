@@ -1,4 +1,4 @@
-FPFLAGS ?= -gl 
+FPFLAGS ?= 
 
 birthday: birthday.pas
 	fpc $(FPFLAGS) birthday.pas
